@@ -18,106 +18,152 @@ This guide documents the development workflow used with the **STM32MP157C-DK2**,
 
 Download the **STM32MP1 Starter Package** for STM32MP157C-DK2 from ST:
 
-```text id="gvzhrq"
+```text
 https://www.st.com/en/embedded-software/stm32mp1starter.html
 ```
 
-Extract the downloaded package.
-
-The package contains the OpenSTLinux image and the flash layout required for the DK2.
-
----
+Extract the downloaded package. It contains the OpenSTLinux images and flash layouts required for the DK2.
 
 ## 1.2 Flash the SD Card
 
 Install **STM32CubeProgrammer**:
 
-```text id="skys01"
+```text
 https://www.st.com/en/development-tools/stm32cubeprog.html
 ```
 
-To start the board in **USB DFU mode**, configure the `SW1` boot switches as:
+Set `SW1` for **USB DFU mode**:
 
-```text id="bj2n9v"
+```text
 BOOT0 → OFF
 BOOT2 → OFF
 ```
 
-This selects the forced USB boot / DFU mode.
+Connect the board:
 
-Connect the PC to:
-
-```text id="kguz1p"
-CN7 / USB_OTG (USB Type-C)
+```text
+CN7 / USB_OTG (USB Type-C) → PC (DFU)
+CN6 / USB_PWR (USB Type-C) → 5V Power
 ```
 
-Power the board and press **RESET**.
+Insert the microSD card, power the board and press **RESET**.
 
-Open **STM32CubeProgrammer** and select:
+Open **STM32CubeProgrammer**:
 
-```text id="6lv6kl"
-Connection → USB
-Refresh
-Connect
+```text
+USB → Refresh → Connect
 ```
 
 The board should now be detected in **DFU mode**.
 
-Select the DK2 SD-card flash layout:
+Locate the **OP-TEE SD-card flash layout**:
 
-```text id="o81d79"
-FlashLayout_sdcard_stm32mp157c-dk2-optee.tsv
+```text
+STM32MP1 Starter Package/
+└── images/
+    └── stm32mp1/
+        └── flashlayout_st-image-weston/
+            └── optee/
+                └── FlashLayout_sdcard_stm32mp157c-dk2-optee.tsv
 ```
 
-Set the binaries path to the extracted:
+In **STM32CubeProgrammer**:
 
-```text id="5pb8fy"
-images/stm32mp1/
+```text
+1. Select → Download
+2. Open → FlashLayout_sdcard_stm32mp157c-dk2-optee.tsv
+3. Binaries path → .../images/stm32mp1/
+4. Verify all partitions are selected
+5. Click → Download
 ```
 
-and click **Download**.
+STM32CubeProgrammer will automatically program the required **FSBL, FIP, OP-TEE and OpenSTLinux filesystem partitions** to the SD card.
 
-After programming is complete, configure the boot switches for normal SD-card boot:
+After programming completes, set `SW1` for **SD-card boot**:
 
-```text id="cymoc7"
+```text
 BOOT0 → ON
 BOOT2 → ON
 ```
 
-Power-cycle or reset the board. **OpenSTLinux** should now boot from the SD card.
+Power-cycle the board. **OpenSTLinux** should now boot from the SD card.
+
+<img width="2496" height="1404" alt="Image" src="https://github.com/user-attachments/assets/8d579a3c-617c-4aa2-a2e3-4676b941c16f" />
 
 ---
 
 # 2. Connect to the Board
 
-After OpenSTLinux boots, the board can be accessed either through the **serial console** or **Ethernet/SSH**.
+After OpenSTLinux boots, first access the **Linux terminal through ST-LINK serial**:
 
-For serial console through ST-LINK:
-
-```bash id="am0op5"
-ls /dev/ttyACM*
-minicom -D /dev/ttyACM0
+```text
+CN11 / ST-LINK (USB) → PC
 ```
 
-For Ethernet, connect the cable and check the board IP:
+Find the serial port and connect using **picocom**:
 
-```bash id="xewhgm"
+```bash
+ls /dev/ttyACM*
+picocom -b 115200 /dev/ttyACM0
+```
+
+Connect the Ethernet cable and check the assigned IP:
+
+```bash
 ip addr
 ```
 
-Then connect from the host PC:
+The Ethernet interface is typically `end0`. Look for the `inet` address:
 
-```bash id="uhsbnc"
-ssh root@<BOARD_IP>
+```text
+end0 → inet 10.42.0.252/24
 ```
 
-Example:
+Then connect from the host PC using SSH:
 
-```bash id="n4xd2m"
-ssh root@192.168.1.100
+```bash
+ssh root@10.42.0.252
 ```
 
-Use the serial console mainly for initial bring-up and debugging. For normal development, SSH over Ethernet is more convenient.
+In general:
+
+```text
+Initial access → CN11 / ST-LINK Serial (115200 baud)
+Normal access  → Ethernet (end0) / SSH
+```
+
+## 2.1 Host PC Internet Sharing
+
+To give the STM32MP157C-DK2 Internet access through the host PC, configure the host Ethernet connection in Ubuntu:
+
+```text
+Settings → Network → Wired → IPv4
+IPv4 Method → Shared to other computers
+```
+
+Reconnect Ethernet. The host PC will provide the board with an IP address and route its Internet traffic through the PC.
+
+Check from the STM32MP157C-DK2:
+
+```bash
+ip addr
+ping 8.8.8.8
+ping google.com
+```
+
+Typical setup:
+
+```text
+Internet
+   ↓
+Host PC (Wi-Fi)
+   ↓
+Ethernet — Shared to other computers
+   ↓
+STM32MP157C-DK2 (end0)
+```
+
+If `end0` receives an address such as `10.42.0.x` and the ping succeeds, the board has Internet access through the host PC.
 
 ---
 
@@ -125,7 +171,7 @@ Use the serial console mainly for initial bring-up and debugging. For normal dev
 
 Install:
 
-```text id="3mrg0u"
+```text
 STM32CubeIDE
 STM32CubeMX
 STM32CubeMP1
@@ -133,51 +179,38 @@ STM32CubeMP1
 
 The **Cortex-M4** is used for real-time and hardware-level tasks, while the Cortex-A7 cores run OpenSTLinux.
 
-The basic architecture is:
-
-```text id="ovbhho"
-┌─────────────────────────────┐
-│ Cortex-A7 + OpenSTLinux     │
-│                             │
-│ Ethernet                    │
-│ USB                         │
-│ Filesystem                  │
-│ GTK Application             │
-└──────────────┬──────────────┘
-               │
-          OpenAMP / RPMsg
-               │
-┌──────────────▼──────────────┐
-│ Cortex-M4                   │
-│                             │
-│ IMU acquisition             │
-│ SPI / I2C                   │
-│ GPIO                        │
-│ Real-time processing        │
-└─────────────────────────────┘
+```text
+Real-time / hardware tasks → Cortex-M4
+GUI / Ethernet / USB       → Cortex-A7 + Linux
 ```
 
-The general design rule used in this project is:
+Cortex-M4 development uses three main mechanisms:
 
-```text id="ifn5di"
-Real-time / deterministic hardware tasks → Cortex-M4
-
-GUI / Ethernet / USB / filesystem       → Cortex-A7 + Linux
+```text
+ST-LINK        → SWD/JTAG debug (breakpoints, step, registers)
+remoteproc     → Linux loads / starts / stops the M4 firmware
+OpenAMP/RPMsg  → Linux ↔ M4 data communication
 ```
 
-Cortex-M4 firmware can be developed and debugged in two main ways:
+`remoteproc` is **not a debugger**; it is the Linux framework used to manage the Cortex-M4.
 
-```text id="6w4pbw"
-Engineering Mode:
-PC → ST-LINK → Cortex-M4
+Typical development architecture:
 
-Production / Linux Mode:
-PC → Linux → remoteproc → Cortex-M4
+```text
+PC ── ST-LINK ─────────────→ Cortex-M4 (Debug)
+
+             STM32MP157
+┌───────────────────────────────┐
+│ Cortex-A7 / OpenSTLinux       │
+│        │                      │
+│    remoteproc                 │
+│        │                      │
+│        ▼                      │
+│ Cortex-M4                     │
+│        ↕                      │
+│   OpenAMP / RPMsg             │
+└───────────────────────────────┘
 ```
-
-Direct ST-LINK debugging is useful during initial M4 development.
-
-When Linux and M4 are running together, Linux manages the Cortex-M4 through **remoteproc**, while communication between the processors is performed using **OpenAMP/RPMsg**.
 
 ---
 
@@ -185,7 +218,7 @@ When Linux and M4 are running together, Linux manages the Cortex-M4 through **re
 
 The project is developed in the following order:
 
-```text id="lyr1h9"
+```text
 OpenSTLinux
      ↓
 Ethernet / SSH
