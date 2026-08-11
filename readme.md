@@ -252,3 +252,43 @@ remoteproc → Load / start M4 firmware
 ST-LINK    → Debug Cortex-M4
 ```
 <img width="2035" height="1323" alt="Image" src="https://github.com/user-attachments/assets/50e624b1-8aa5-4552-9254-e7744ef913f3" />
+
+# 5. GTK Linux Application
+
+The GTK application runs on the **Cortex-A7 / OpenSTLinux** side and displays the IMU data received from the Cortex-M4 through OpenAMP/RPMsg.
+
+The application source is located in:
+
+```text
+GTK_App/
+├── main.c
+└── build.sh
+```
+
+The `build.sh` script uses the **STM32MP1 cross-compilation SDK** to build the GTK application and automatically copies the executable to the board over SSH.
+
+Make the script executable and build from the VS Code terminal:
+
+```bash
+cd GTK_App
+chmod +x build.sh
+./build.sh
+```
+
+The executable is copied to:
+
+```text
+/usr/local/projects/STM32MP157CAC3_GTK_IMU_Monitor_App
+```
+
+Connect to the board and run it:
+
+```bash
+ssh root@10.42.0.252
+cd /usr/local/projects/STM32MP157CAC3_GTK_IMU_Monitor_App
+./STM32MP157CAC3_GTK_IMU_Monitor_App
+```
+
+```text
+main.c → build.sh → Cross-Compile → SCP → OpenSTLinux → Run GTK App
+```
