@@ -36,6 +36,8 @@ OpenSTLinux → Ethernet / SSH → M4 Firmware
 → OpenAMP / RPMsg → IMU Data → GTK Application
 ```
 
+<img width="800" height="480" alt="Image" src="https://github.com/user-attachments/assets/bcba5922-928d-4d9d-a017-eac9be4a74ce" />
+
 ---
 
 # 1. Board Bring-Up
