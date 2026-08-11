@@ -1,0 +1,8 @@
+../Src/main.c:46:19:MPU6050_Init	4
+../Src/main.c:65:19:MPU6050_ReadAll	2
+../Src/main.c:82:5:main	4
+../Src/main.c:140:6:SystemClock_Config	3
+../Src/main.c:197:13:MX_IPCC_Init	2
+../Src/main.c:222:13:MX_I2C5_Init	4
+../Src/main.c:270:13:MX_GPIO_Init	1
+../Src/main.c:317:6:Error_Handler	1
