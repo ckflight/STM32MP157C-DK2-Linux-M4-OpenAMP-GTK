@@ -10,6 +10,42 @@ This guide documents the development workflow used with the **STM32MP157C-DK2**,
 * IMU data transfer to Linux
 * GTK application on Cortex-A7/Linux
 
+## Project Architecture
+
+```text
+                         STM32MP157C-DK2
+┌──────────────────────────────────────────────────────────┐
+│                                                          │
+│   Cortex-A7 / OpenSTLinux                                │
+│   ┌──────────────────────────────────────────────────┐   │
+│   │ GTK Application                                  │   │
+│   │ Ethernet / SSH / USB / Filesystem                │   │
+│   └──────────────────────────────────────────────────┘   │
+│                         │                                │
+│              remoteproc │ Load / Start / Stop M4         │
+│                         ▼                                │
+│   ┌──────────────────────────────────────────────────┐   │
+│   │ Cortex-M4                                        │   │
+│   │ IMU / I2C / GPIO / Real-Time Processing         │   │
+│   └──────────────────────────────────────────────────┘   │
+│                         ↕                                │
+│                  OpenAMP / RPMsg                         │
+│                Linux ↔ M4 Data                           │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+                          ▲
+                          │ SWD/JTAG Debug
+                          │
+                    PC ── ST-LINK
+```
+
+Project flow:
+
+```text
+OpenSTLinux Bring-Up → Ethernet / SSH → M4 Development
+        → OpenAMP / RPMsg → IMU Data → GTK Application
+```
+
 ---
 
 # 1. Board Bring-Up
@@ -88,48 +124,43 @@ BOOT2 → ON
 
 Power-cycle the board. **OpenSTLinux** should now boot from the SD card.
 
-<img width="2496" height="1404" alt="Image" src="https://github.com/user-attachments/assets/8d579a3c-617c-4aa2-a2e3-4676b941c16f" />
-
 ---
 
 # 2. Connect to the Board
 
-After OpenSTLinux boots, first access the **Linux terminal through ST-LINK serial**:
+After OpenSTLinux boots, access the **Linux terminal through the ST-LINK debug interface**:
 
 ```text
 CN11 / ST-LINK (USB) → PC
 ```
 
-Find the serial port and connect using **picocom**:
+Connect using:
 
 ```bash
 ls /dev/ttyACM*
 picocom -b 115200 /dev/ttyACM0
 ```
 
-Connect the Ethernet cable and check the assigned IP:
+From the Linux terminal, find the Ethernet IP address:
 
 ```bash
 ip addr
 ```
 
-The Ethernet interface is typically `end0`. Look for the `inet` address:
+Example:
 
 ```text
-end0 → inet 10.42.0.252/24
+end0 → 10.42.0.252
 ```
 
-Then connect from the host PC using SSH:
+Once the IP is known, normal development can continue over **SSH**:
 
 ```bash
 ssh root@10.42.0.252
 ```
 
-In general:
-
 ```text
-Initial access → CN11 / ST-LINK Serial (115200 baud)
-Normal access  → Ethernet (end0) / SSH
+ST-LINK Serial → Linux Terminal → Find IP → SSH
 ```
 
 ## 2.1 Host PC Internet Sharing
@@ -141,17 +172,7 @@ Settings → Network → Wired → IPv4
 IPv4 Method → Shared to other computers
 ```
 
-Reconnect Ethernet. The host PC will provide the board with an IP address and route its Internet traffic through the PC.
-
-Check from the STM32MP157C-DK2:
-
-```bash
-ip addr
-ping 8.8.8.8
-ping google.com
-```
-
-Typical setup:
+The host PC shares its Internet connection with the board over Ethernet:
 
 ```text
 Internet
@@ -161,6 +182,14 @@ Host PC (Wi-Fi)
 Ethernet — Shared to other computers
    ↓
 STM32MP157C-DK2 (end0)
+```
+
+Reconnect Ethernet and verify the connection from the board:
+
+```bash
+ip addr
+ping 8.8.8.8
+ping google.com
 ```
 
 If `end0` receives an address such as `10.42.0.x` and the ping succeeds, the board has Internet access through the host PC.
@@ -214,24 +243,37 @@ PC ── ST-LINK ─────────────→ Cortex-M4 (Debug)
 
 ---
 
-# 4. Development Flow
+# 4. Cortex-M4 Project Configuration
 
-The project is developed in the following order:
+Create the STM32MP157C-DK2 project in **STM32CubeMX** and configure it for OpenAMP.
+
+In **Project Manager**:
 
 ```text
-OpenSTLinux
-     ↓
-Ethernet / SSH
-     ↓
-Cortex-M4 Debug
-     ↓
-OpenAMP / RPMsg
-     ↓
-IMU on Cortex-M4
-     ↓
-M4 → Linux IMU Data
-     ↓
-GTK Application
+Application Structure → Basic
 ```
 
-The following sections document the Cortex-M4 configuration, OpenAMP communication and application development in detail.
+Use **Basic** structure to avoid unnecessary library/package dependency issues.
+
+Then enable the required Cortex-M4 interrupts:
+
+```text
+NVIC:
+IPCC RX1 occupied interrupt → Enable
+IPCC TX1 free interrupt     → Enable
+HSEM interrupt 2            → Enable
+```
+
+After enabling these interrupts, **IPCC** and **HSEM** become active and OpenAMP can be enabled:
+
+```text
+Middleware and Software Packs:
+OPENAMP → M4 → Activated
+Communication Mode → REMOTE
+```
+
+Keep the default OpenAMP shared-memory settings unless a custom memory layout is required.
+
+<img width="2493" height="1408" alt="Image" src="https://github.com/user-attachments/assets/7a4d40ec-2790-4702-a54b-89026429df6e" />
+<img width="2496" height="1404" alt="Image" src="https://github.com/user-attachments/assets/f555d448-d8fd-49ae-994d-ba2e702bf308" />
+<img width="2496" height="1404" alt="Image" src="https://github.com/user-attachments/assets/377bb00a-b909-4589-8da0-6296ab03f2bd" />
