@@ -294,3 +294,25 @@ cd /usr/local/projects/STM32MP157CAC3_GTK_IMU_Monitor_App
 ```text
 main.c → build.sh → Cross-Compile → SCP → OpenSTLinux → Run GTK App
 ```
+# 6. Run the Complete Application
+
+After deploying both applications, start the **Cortex-M4 firmware** first:
+
+```bash
+cd /usr/local/projects/STM32MP157CAC3_I2C_GPIO_OPENAMP_CM4
+./fw_cortex_m4.sh start
+```
+
+Then start the **GTK application**:
+
+```bash
+cd /usr/local/projects/STM32MP157CAC3_GTK_IMU_Monitor_App
+./STM32MP157CAC3_GTK_IMU_Monitor_App
+```
+
+To stop the Cortex-M4 firmware:
+
+```bash
+cd /usr/local/projects/STM32MP157CAC3_I2C_GPIO_OPENAMP_CM4
+./fw_cortex_m4.sh stop
+```
